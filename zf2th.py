@@ -221,11 +221,11 @@ def create_th_alerts(config, alerts, callback=None):
         logging.debug('API TheHive - status code: {}'
                       .format(response.status_code))
 
+        # TODO: Why >299?
         if response.status_code > 299:
             logging.debug('API TheHive - raw error output: {}'
                           .format(response.raw.read()))
         else:
-            # Not The Hive error?
             if callback is not None:
                 callback(a.sourceRef)
 
