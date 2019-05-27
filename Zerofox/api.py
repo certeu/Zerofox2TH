@@ -4,9 +4,11 @@
 
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
-import requests
-import sys
+
 import datetime
+import sys
+
+import requests
 
 
 class ZerofoxApi():
@@ -118,5 +120,45 @@ class ZerofoxApi():
                                 proxies=self.proxies, verify=self.verify)
             if resp.status_code == 200:
                 return resp
+        except requests.exceptions.RequestException as e:
+            sys.exit("Error: {}".format(e))
+
+    def perform_alert_action(self, alert_id, action, action_params=None):
+        """
+        Performs an action on an alert.
+
+        :param alert_id:
+        :type alert_id: string
+        :param action:
+        :type action: string
+        :param action_params:
+        :type action_params: dict
+        :return: Response as dictionary
+        :rtype: dict
+        """
+
+        req = "{0}/alerts/{1}/{2}/".format(self.url, alert_id, action)
+
+        headers = {
+            'Authorization': 'token {}'.format(self.key),
+        }
+
+        data = {}
+        if action_params is not None \
+                and isinstance(action_params, dict):
+            data = action_params
+
+        try:
+            resp = requests.post(req,
+                                 headers=headers,
+                                 json=data,
+                                 proxies=self.proxies,
+                                 verify=self.verify)
+
+            if resp.status_code == 200:
+                return self.response("success", True)
+            else:
+                return self.response("failure", resp.json())
+
         except requests.exceptions.RequestException as e:
             sys.exit("Error: {}".format(e))

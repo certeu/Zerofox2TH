@@ -1,11 +1,17 @@
 Zerofox = {
-  'proxies':{
-      'http': '',
-      'https': ''
-  },
-    'url':'',
-    'key':'',
-    'verify':True
+    'proxies':{
+        'http': '',
+        'https': ''
+    },
+    #'post_process_action': {
+    #    'action': 'review',
+    #    'action_params': {
+    #        'actor': 'admin@example.com'
+    #    }
+    #},
+    'url': '',
+    'key': '',
+    'verify': True
 }
 
 TheHive = {

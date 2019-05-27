@@ -178,7 +178,7 @@ def prepare_alert(content, thumbnails):
     :return: Thehive alert
     :rtype: thehive4py.models Alerts
     """
-    
+
     case_tags = ["src:ZEROFOX"]
     case_tags = add_tags(case_tags, [
         "Type={}".format(content.get("alert_type")),
@@ -204,7 +204,7 @@ def prepare_alert(content, thumbnails):
     return alert
 
 
-def create_th_alerts(config, alerts):
+def create_th_alerts(config, alerts, callback=None):
     """
     :param config: TheHive config
     :type config: dict
@@ -218,11 +218,17 @@ def create_th_alerts(config, alerts):
                        config.get('proxies'))
     for a in alerts:
         response = thapi.create_alert(a)
-        logging.debug('API TheHive - status code: {}'.format(
-            response.status_code))
+
+        logging.debug('API TheHive - status code: {}'
+                      .format(response.status_code))
+
+        # TODO: Why >299?
         if response.status_code > 299:
-            logging.debug('API TheHive - raw error output: {}'.format(
-                response.raw.read()))
+            logging.debug('API TheHive - raw error output: {}'
+                          .format(response.raw.read()))
+        else:
+            if callback is not None:
+                callback(a.sourceRef)
 
 
 def get_alerts(zfapi, id_list):
@@ -277,6 +283,33 @@ def find_alerts(zfapi, last):
                 thumbnails = build_thumbnails(zfapi, entity_image_url,
                                               perpetrator_image_url)
                 yield prepare_alert(a, thumbnails)
+
+
+def perform_alert_action(zfapi, alert_id, action, action_params=None):
+    """
+    Performs an action on an alert.
+
+    :param zfapi: ZeroFox API client
+    :type zfapi: Zerofox.api.ZerofoxApi
+    :param alert_id: Alert ID
+    :type alert_id: string
+    :param action: Action to perform
+    :type action: string
+    :param action_params: Optional parameters related to given action
+    :type action_params: dict
+    :return: None
+    :rtype: None
+    """
+    logging.debug(("perform_alert_action(): alert_id: {}, "
+                   "action: {}, action_params: {}")
+                  .format(alert_id, action, action_params))
+
+    resp = zfapi.perform_alert_action(alert_id, action, action_params)
+
+    if resp["status"] == "failure":
+        logging.debug(("perform_alert_action(): Error while "
+                       "performing action '{}': {}")
+                      .format(action, resp.get('data')))
 
 
 def base64_image(content, width):
@@ -349,6 +382,23 @@ def build_thumbnails(zfapi, entity_image_url, perpetrator_image_url):
         }
 
 
+def _create_callback(zfapi, zerofox_conf):
+    post_process_action = zerofox_conf.get('post_process_action')
+    if post_process_action is None:
+        return None
+
+    action = post_process_action.get('action')
+    if action is None:
+        return None
+
+    action_params = post_process_action.get('action_params', {})
+
+    def callback(alert_id):
+        perform_alert_action(zfapi, alert_id, action, action_params)
+
+    return callback
+
+
 def run():
 
     """
@@ -368,19 +418,19 @@ def run():
                     "start fetching alerts".format(t.get("data")['token']))
             sys.exit(0)
         else:
-            print(t.get("content"))
+            print("Missing ZeroFox credentials.")
             sys.exit(1)
 
     def alerts(args):
         zfapi = ZerofoxApi(Zerofox)
         alerts = get_alerts(zfapi, args.id)
-        create_th_alerts(TheHive, alerts)
+        create_th_alerts(TheHive, alerts, callback=_create_callback(zfapi, Zerofox))
 
     def find(args):
         last = args.last.pop()
         zfapi = ZerofoxApi(Zerofox)
         alerts = find_alerts(zfapi, last)
-        create_th_alerts(TheHive, alerts)
+        create_th_alerts(TheHive, alerts, callback=_create_callback(zfapi, Zerofox))
         if args.monitor:
             mon = monitoring("{}/zf2th.status".format(
                 os.path.dirname(os.path.realpath(__file__))))
@@ -426,9 +476,9 @@ def run():
     if args.debug:
         logging.basicConfig(filename='{}/zf2th.log'.format(
                                 os.path.dirname(os.path.realpath(__file__))),
-                            level='DEBUG', format='%(asctime)s\
-                                                   %(levelname)s\
-                                                   %(message)s')
+                            level='DEBUG', format=('%(asctime)s '
+                                                   '%(levelname)s '
+                                                   '%(message)s'))
     args.func(args)
 
 
