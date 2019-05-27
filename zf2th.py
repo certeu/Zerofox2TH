@@ -184,7 +184,8 @@ def prepare_alert(content, thumbnails):
         "Type={}".format(content.get("alert_type")),
         "Network={}".format(content.get("network")),
         "Entity={}".format(content.get("entity", {}).get("name", "-")),
-        "Id={}".format(content.get('id'))
+        "Id={}".format(content.get('id')),
+        "Rule={}".format(content.get('rule_name'))
     ])
 
     alert = Alert(title=th_title(content),
@@ -320,8 +321,11 @@ def build_thumbnails(zfapi, entity_image_url, perpetrator_image_url):
     :return: base64 encoded images ready to be added in markdown
     :rtype: dict
     """
+    logging.debug('build_thumbnails(): entity_image_url: %s, perpetrator_image_url: %s',
+                  entity_image_url, perpetrator_image_url)
 
-    if entity_image_url is not None:
+    # entity_image_url can be an empty string.
+    if entity_image_url is not None and entity_image_url:
         resp_entity_image = zfapi.get_image(entity_image_url)
         entity_image = "data:{};base64,{}".format(
             resp_entity_image.headers['Content-Type'],
@@ -331,7 +335,8 @@ def build_thumbnails(zfapi, entity_image_url, perpetrator_image_url):
 
     perpetrator_image = "no image"
 
-    if perpetrator_image_url is not None:
+    # perpetrator_image_url can be an empty string.
+    if perpetrator_image_url is not None and perpetrator_image_url:
         resp_perpetrator_image = zfapi.get_image(perpetrator_image_url)
         if resp_perpetrator_image is not None:
             perpetrator_image = "data:{};base64,{}".format(
